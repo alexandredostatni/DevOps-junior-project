@@ -1,0 +1,79 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: CI/CD DevOps Júnior
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependências
+        run: |
+          pip install --upgrade pip
+          pip install -r app/requirements.txt
+
+      - name: Testar API (simulado)
+        run: |
+          pip install requests
+          python -c "
+import requests, time, subprocess, sys
+subprocess.Popen(['docker', 'compose', 'up', '-d'])
+time.sleep(10)
+r = requests.post('http://localhost:5000/usuario', json={'nome':'Teste','email':'ci@test.com'})
+assert r.status_code == 201
+print('Teste OK')
+subprocess.run(['docker', 'compose', 'down'])
+"
+
+      - name: Build Docker Image
+        run: |
+          docker build -t api-devops:latest ./app
+
+      - name: Zip app para S3
+        run: |
+          zip -r app.zip app/
+          mkdir -p infra/terraform
+          cp app.zip infra/terraform/
+
+      - name: Iniciar LocalStack
+        run: |
+          docker run -d -p 4566:4566 -p 4571:4571 localstack/localstack
+          sleep 30
+
+      - name: Aplicar Terraform
+        run: |
+          cd infra/terraform
+          terraform init
+          terraform apply -auto-approve
+
+      - name: Load imagem no kind
+        run: |
+          kind load docker-image api-devops:latest
+
+      - name: Deploy no Kubernetes
+        run: |
+          kubectl apply -f kubernetes/mongo/
+          kubectl apply -f kubernetes/deployment.yaml
+          kubectl apply -f kubernetes/service.yaml
+
+      - name: Aguardar rollout
+        run: |
+          kubectl rollout status deployment/api-devops
+
+      - name: Teste final no K8s
+        run: |
+          sleep 10
+          curl -f http://localhost:5000/ || exit 1
