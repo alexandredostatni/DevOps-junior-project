@@ -2,7 +2,7 @@
 name: CI/CD DevOps Júnior
 
  on:
-   push:
+    push:
      branches: [ main ]
    pull_request:
      branches: [ main ]
