@@ -1,34 +1,34 @@
-#yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 name: CI/CD DevOps Júnior
 
 on:
-    push:
-     branches: [ main ]
-   pull_request:
-     branches: [ main ]
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
- jobs:
-   build-and-deploy:
-     runs-on: ubuntu-latest
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
 
-     steps:
-       - name: Checkout código
-         uses: actions/checkout@v4
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
 
-       - name: Configurar Python
-         uses: actions/setup-python@v4
-         with:
-           python-version: '3.11'
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-       - name: Instalar dependências
-         run: |
-           pip install --upgrade pip
-           pip install -r app/requirements.txt
+      - name: Instalar dependências
+        run: |
+          pip install --upgrade pip
+          pip install -r app/requirements.txt
 
-       - name: Testar API (simulado)
-         run: |
-           pip install requests
-           cat > test_api.py << 'EOF'
+      - name: Testar API (simulado)
+        run: |
+          pip install requests
+          cat > test_api.py << 'EOF'
 import requests
 import time
 import subprocess
@@ -56,44 +56,44 @@ except Exception as e:
 finally:
     subprocess.run(['docker', 'compose', 'down'])
 EOF
-           python test_api.py
+          python test_api.py
 
-       - name: Build Docker Image
-         run: |
-           docker build -t api-devops:latest ./app
+      - name: Build Docker Image
+        run: |
+          docker build -t api-devops:latest ./app
 
-       - name: Zip app para S3
-         run: |
-           zip -r app.zip app/
-           mkdir -p infra/terraform
-           cp app.zip infra/terraform/
+      - name: Zip app para S3
+        run: |
+          zip -r app.zip app/
+          mkdir -p infra/terraform
+          cp app.zip infra/terraform/
 
-       - name: Iniciar LocalStack
-         run: |
-           docker run -d -p 4566:4566 -p 4571:4571 localstack/localstack
-           sleep 30
+      - name: Iniciar LocalStack
+        run: |
+          docker run -d -p 4566:4566 -p 4571:4571 localstack/localstack
+          sleep 30
 
-       - name: Aplicar Terraform
-         run: |
-           cd infra/terraform
-           terraform init
-           terraform apply -auto-approve
+      - name: Aplicar Terraform
+        run: |
+          cd infra/terraform
+          terraform init
+          terraform apply -auto-approve
 
-       - name: Load imagem no kind
-         run: |
-           kind load docker-image api-devops:latest
+      - name: Load imagem no kind
+        run: |
+          kind load docker-image api-devops:latest
 
-       - name: Deploy no Kubernetes
-         run: |
-           kubectl apply -f kubernetes/mongo/
-           kubectl apply -f kubernetes/deployment.yaml
-           kubectl apply -f kubernetes/service.yaml
+      - name: Deploy no Kubernetes
+        run: |
+          kubectl apply -f kubernetes/mongo/
+          kubectl apply -f kubernetes/deployment.yaml
+          kubectl apply -f kubernetes/service.yaml
 
-       - name: Aguardar rollout
-         run: |
-           kubectl rollout status deployment/api-devops
+      - name: Aguardar rollout
+        run: |
+          kubectl rollout status deployment/api-devops
 
-       - name: Teste final no K8s
-         run: |
-           sleep 10
-           curl -f http://localhost:5000/ || exit 1
+      - name: Teste final no K8s
+        run: |
+          sleep 10
+          curl -f http://localhost:5000/ || exit 1
