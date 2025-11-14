@@ -25,18 +25,39 @@ jobs:
           pip install --upgrade pip
           pip install -r app/requirements.txt
 
-      - name: Testar API (simulado)
+            - name: Testar API (simulado)
         run: |
           pip install requests
-          python -c "
-import requests, time, subprocess, sys
+          cat > test_api.py << 'EOF'
+import requests
+import time
+import subprocess
+import sys
+
+# Inicia docker-compose em background
 subprocess.Popen(['docker', 'compose', 'up', '-d'])
-time.sleep(10)
-r = requests.post('http://localhost:5000/usuario', json={'nome':'Teste','email':'ci@test.com'})
-assert r.status_code == 201
-print('Teste OK')
-subprocess.run(['docker', 'compose', 'down'])
-"
+time.sleep(15)
+
+# Testa a API
+try:
+    r = requests.post(
+        'http://localhost:5000/usuario',
+        json={'nome': 'Teste', 'email': 'ci@test.com'},
+        timeout=10
+    )
+    if r.status_code == 201:
+        print("Teste da API: SUCESSO")
+    else:
+        print(f"Erro: {r.status_code}")
+        sys.exit(1)
+except Exception as e:
+    print(f"Falha no teste: {e}")
+    sys.exit(1)
+finally:
+    subprocess.run(['docker', 'compose', 'down'])
+EOF
+
+          python test_api.py
 
       - name: Build Docker Image
         run: |
