@@ -1,4 +1,3 @@
-Projeto Completo: Simulação de Rotina de DevOps Júnior
 Rotina realista de um DevOps júnior em um projeto do zero:
 Uma API Python com Flask que salva dados em MongoDB, containerizada com Docker, infra provisionada com Terraform no LocalStack (simulando AWS), orquestrada com Kubernetes local (kind), e CI/CD com GitHub Actions.
 
@@ -68,5 +67,3 @@ devops-junior-project/
 │
 ├── README.md                             ← Instruções completas
 └── .gitignore                            
-  -H "Content-Type: application/json" \
-  -d '{"nome":"Maria","email":"maria@ex.com"}'
