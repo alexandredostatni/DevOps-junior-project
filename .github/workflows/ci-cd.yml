@@ -28,7 +28,7 @@ jobs:
       - name: Testar API (simulado)
         run: |
           pip install requests
-          cat << 'PYTEST' > test_api.py
+          cat > test_api.py << "EOF"
 import requests
 import time
 import subprocess
@@ -56,7 +56,7 @@ except Exception as e:
 finally:
     print("Parando docker-compose...")
     subprocess.run(['docker', 'compose', 'down'], cwd='.')
-PYTEST
+EOF
           python test_api.py
 
       - name: Build Docker Image
@@ -95,3 +95,4 @@ PYTEST
         run: |
           sleep 15
           curl -f http://localhost:5000/ || exit 1
+
