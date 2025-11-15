@@ -28,39 +28,39 @@ jobs:
       - name: Testar API (simulado)
         run: |
           pip install requests
-          cat > test_api.py << 'EOF'
+          cat << 'PYTEST' > test_api.py
 import requests
 import time
 import subprocess
 import sys
 
-# Inicia docker-compose em background
+print("Iniciando docker-compose...")
 subprocess.Popen(['docker', 'compose', 'up', '-d'])
-time.sleep(15)
+time.sleep(20)
 
-# Testa a API
 try:
+    print("Testando POST /usuario...")
     r = requests.post(
         'http://localhost:5000/usuario',
-        json={'nome': 'Teste', 'email': 'ci@test.com'},
-        timeout=10
+        json={'nome': 'Teste CI', 'email': 'ci@test.com'},
+        timeout=15
     )
     if r.status_code == 201:
-        print("Teste da API: SUCESSO")
+        print("API OK! Status 201")
     else:
-        print(f"Erro: {r.status_code}")
+        print(f"Falha: {r.status_code} - {r.text}")
         sys.exit(1)
 except Exception as e:
-    print(f"Falha no teste: {e}")
+    print(f"Erro na requisição: {e}")
     sys.exit(1)
 finally:
-    subprocess.run(['docker', 'compose', 'down'])
-EOF
+    print("Parando docker-compose...")
+    subprocess.run(['docker', 'compose', 'down'], cwd='.')
+PYTEST
           python test_api.py
 
       - name: Build Docker Image
-        run: |
-          docker build -t api-devops:latest ./app
+        run: docker build -t api-devops:latest ./app
 
       - name: Zip app para S3
         run: |
@@ -70,8 +70,8 @@ EOF
 
       - name: Iniciar LocalStack
         run: |
-          docker run -d -p 4566:4566 -p 4571:4571 localstack/localstack
-          sleep 30
+          docker run -d -p 4566:4566 -p 4571:4571 --name localstack localstack/localstack
+          sleep 35
 
       - name: Aplicar Terraform
         run: |
@@ -80,8 +80,7 @@ EOF
           terraform apply -auto-approve
 
       - name: Load imagem no kind
-        run: |
-          kind load docker-image api-devops:latest
+        run: kind load docker-image api-devops:latest
 
       - name: Deploy no Kubernetes
         run: |
@@ -90,10 +89,9 @@ EOF
           kubectl apply -f kubernetes/service.yaml
 
       - name: Aguardar rollout
-        run: |
-          kubectl rollout status deployment/api-devops
+        run: kubectl rollout status deployment/api-devops --timeout=120s
 
       - name: Teste final no K8s
         run: |
-          sleep 10
+          sleep 15
           curl -f http://localhost:5000/ || exit 1
